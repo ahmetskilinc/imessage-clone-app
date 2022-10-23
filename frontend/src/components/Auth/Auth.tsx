@@ -1,7 +1,11 @@
+import { useMutation } from "@apollo/client";
 import { Button, Center, Image, Input, Stack, Text } from "@chakra-ui/react";
 import { Session } from "next-auth";
 import { signIn, signOut } from "next-auth/react";
 import { useState } from "react";
+import UserOperations from "../../graphql/operations/user";
+import toast from "react-hot-toast";
+import { CreateUsernameData, CreateUsernameVariables } from "../../util/types";
 
 interface IAuthProps {
 	session: Session | null;
@@ -10,16 +14,43 @@ interface IAuthProps {
 
 const Auth: React.FunctionComponent<IAuthProps> = ({ session, reloadSession }) => {
 	const [username, setUsername] = useState("");
+	const [createUsername, { loading, error }] = useMutation<
+		CreateUsernameData,
+		CreateUsernameVariables
+	>(UserOperations.Mutations.createUsername);
 
 	const onSubmit = async () => {
-		try {
-			/**
-			 * Save username
-			 */
+		if (!username) return;
 
+		try {
+			const { data } = await createUsername({
+				variables: {
+					username,
+				},
+			});
+
+			if (!data?.createUsername) {
+				throw new Error();
+			}
+
+			if (data.createUsername.error) {
+				const {
+					createUsername: { error },
+				} = data;
+
+				toast.error(error);
+				return;
+			}
+
+			toast.success("Username successfully created");
+
+			/**
+			 * Reload session to obtain new username
+			 */
 			reloadSession();
 		} catch (error) {
-			console.log("Auth.tsx, onSubmit error: ", error);
+			toast.error("There was an error");
+			console.log("onSubmit error", error);
 		}
 	};
 	return (
@@ -33,7 +64,7 @@ const Auth: React.FunctionComponent<IAuthProps> = ({ session, reloadSession }) =
 							value={username}
 							onChange={(e) => setUsername(e.target.value)}
 						/>
-						<Button width="100%" onClick={() => onSubmit()}>
+						<Button width="100%" onClick={() => onSubmit()} isLoading={loading}>
 							Save
 						</Button>
 						<Button width="100%" onClick={() => signOut()}>

@@ -6,7 +6,7 @@ import GoogleProvider from "next-auth/providers/google";
 
 const prisma = new PrismaClient();
 
-export const authOptions = {
+export default NextAuth({
 	adapter: PrismaAdapter(prisma),
 	providers: [
 		GithubProvider({
@@ -19,5 +19,14 @@ export const authOptions = {
 		}),
 	],
 	secret: process.env.NEXTAUTH_SECRET as string,
-};
-export default NextAuth(authOptions);
+	callbacks: {
+		async session({ session, token, user }) {
+			const sessionUser = { ...session.user, ...user };
+
+			return Promise.resolve({
+				...session,
+				user: sessionUser,
+			});
+		},
+	},
+});
